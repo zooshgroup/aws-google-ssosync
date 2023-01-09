@@ -35,9 +35,9 @@ import (
 
 // SyncGSuite is the interface for synchronizing users/groups
 type SyncGSuite interface {
-	SyncUsers(string) error
-	SyncGroups(string) error
-	SyncGroupsUsers(string) error
+	SyncUsers([]string) error
+	SyncGroups([]string) error
+	SyncGroupsUsers([]string) error
 }
 
 // SyncGSuite is an object type that will synchronize real users and groups
@@ -72,7 +72,11 @@ func New(cfg *config.Config, a aws.Client, g google.Client, ids identitystoreifa
 //  manager='janesmith@example.com'
 //  orgName=Engineering orgTitle:Manager
 //  EmploymentData.projects:'GeneGnomes'
-func (s *syncGSuite) SyncUsers(query string) error {
+func (s *syncGSuite) SyncUsers(queries []string) error {
+	if len(queries) < 1 {
+		queries = append(queries, "")
+	}
+
 	log.Debug("get deleted users")
 	deletedUsers, err := s.google.GetDeletedUsers()
 	if err != nil {
@@ -108,10 +112,22 @@ func (s *syncGSuite) SyncUsers(query string) error {
 		}
 	}
 
+	knownGoogleUsers := map[string]bool{}
+	googleUsers := []*admin.User{}
 	log.Debug("get active google users")
-	googleUsers, err := s.google.GetUsers(query)
-	if err != nil {
-		return err
+	for _, query := range queries {
+		users, err := s.google.GetUsers(query)
+		if err != nil {
+			return err
+		}
+		for _, user := range users {
+			if _, ok := knownGoogleUsers[user.Id]; ok {
+				// This entry already exists
+				continue
+			}
+			googleUsers = append(googleUsers, user)
+			knownGoogleUsers[user.Id] = true
+		}
 	}
 
 	for _, u := range googleUsers {
@@ -163,7 +179,7 @@ func (s *syncGSuite) SyncUsers(query string) error {
 // SyncGroups will sync groups from Google -> AWS SSO
 // References:
 // * https://developers.google.com/admin-sdk/directory/v1/guides/search-groups
-// query possible values:
+// queries possible values:
 // '' --> empty or not defined
 //  name='contact'
 //  email:admin*
@@ -171,12 +187,30 @@ func (s *syncGSuite) SyncUsers(query string) error {
 //  name:contact* email:contact*
 //  name:Admin* email:aws-*
 //  email:aws-*
-func (s *syncGSuite) SyncGroups(query string) error {
+func (s *syncGSuite) SyncGroups(queries []string) error {
+	if len(queries) < 1 {
+		queries = append(queries, "")
+	}
 
-	log.WithField("query", query).Debug("get google groups")
-	googleGroups, err := s.google.GetGroups(query)
-	if err != nil {
-		return err
+	knownGoogleGroups := map[string]bool{}
+	googleGroups := []*admin.Group{}
+	for _, query := range queries {
+		log.WithField("query", query).Debug("get google groups")
+		groups, err := s.google.GetGroups(query)
+		if err != nil {
+			return err
+		}
+		if len(groups) < 1 {
+			log.WithField("query", query).Debug("query provided no group results")
+		}
+		for _, group := range groups {
+			if _, ok := knownGoogleGroups[group.Id]; ok {
+				// This entry already exists
+				continue
+			}
+			googleGroups = append(googleGroups, group)
+			knownGoogleGroups[group.Id] = true
+		}
 	}
 
 	correlatedGroups := make(map[string]*aws.Group)
@@ -269,7 +303,7 @@ func (s *syncGSuite) SyncGroups(query string) error {
 // allowing filter groups base on google api filter query parameter
 // References:
 // * https://developers.google.com/admin-sdk/directory/v1/guides/search-groups
-// query possible values:
+// queries possible values:
 // '' --> empty or not defined
 //  name='contact'
 //  email:admin*
@@ -284,22 +318,38 @@ func (s *syncGSuite) SyncGroups(query string) error {
 //  4) add groups in aws and add its members, these were added in google
 //  5) validate equals aws an google groups members
 //  6) delete groups in aws, these were deleted in google
-func (s *syncGSuite) SyncGroupsUsers(query string) error {
-
-	log.WithField("query", query).Info("get google groups")
-	googleGroups, err := s.google.GetGroups(query)
-	if err != nil {
-		return err
+func (s *syncGSuite) SyncGroupsUsers(queries []string) error {
+	if len(queries) < 1 {
+		queries = append(queries, "")
 	}
-	filteredGoogleGroups := []*admin.Group{}
-	for _, g := range googleGroups {
-		if s.ignoreGroup(g.Email) {
-			log.WithField("group", g.Email).Debug("ignoring group")
+
+	knownGoogleGroups := map[string]bool{}
+	googleGroups := []*admin.Group{}
+	for _, query := range queries {
+		log.WithField("query", query).Info("get google groups")
+		groups, err := s.google.GetGroups(query)
+		if err != nil {
+			return err
+		}
+
+		if len(groups) < 1 {
+			log.WithField("query", query).Debug("query provided no group results")
 			continue
 		}
-		filteredGoogleGroups = append(filteredGoogleGroups, g)
+
+		for _, g := range groups {
+			if s.ignoreGroup(g.Email) {
+				log.WithField("group", g.Email).Debug("ignoring group")
+				continue
+			}
+			if _, ok := knownGoogleGroups[g.Id]; ok {
+				// This entry already exists
+				continue
+			}
+			googleGroups = append(googleGroups, g)
+			knownGoogleGroups[g.Id] = true
+		}
 	}
-	googleGroups = filteredGoogleGroups
 
 	log.Debug("preparing list of google users and then google groups and their members")
 	googleUsers, googleGroupsUsers, err := s.getGoogleGroupsAndUsers(googleGroups)
