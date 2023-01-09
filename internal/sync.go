@@ -408,13 +408,17 @@ func (s *syncGSuite) SyncGroupsUsers(queries []string) error {
 			return err
 		}
 
-		log.Warn("deleting user")
-		_, err = s.identityStoreClient.DeleteUser(
-			&identitystore.DeleteUserInput{IdentityStoreId: &s.cfg.IdentityStoreID, UserId: &awsUserFull.ID},
-		)
-		if err != nil {
-			log.Error("error deleting user")
-			return err
+		if s.cfg.Delete {
+			log.Warn("deleting user")
+			_, err = s.identityStoreClient.DeleteUser(
+				&identitystore.DeleteUserInput{IdentityStoreId: &s.cfg.IdentityStoreID, UserId: &awsUserFull.ID},
+			)
+			if err != nil {
+				log.Error("error deleting user")
+				return err
+			}
+		} else {
+			log.Error("Not deleting user from AWS users (use --delete to delete users and groups)")
 		}
 	}
 
@@ -556,13 +560,24 @@ func (s *syncGSuite) SyncGroupsUsers(queries []string) error {
 			return err
 		}
 
-		log.Warn("deleting group")
-		_, err = s.identityStoreClient.DeleteGroup(
-			&identitystore.DeleteGroupInput{IdentityStoreId: &s.cfg.IdentityStoreID, GroupId: &awsGroupFull.ID},
-		)
-		if err != nil {
-			log.Error("deleting group")
-			return err
+		// In mid-2022, AWS started using the prefix "AWS" for administrative
+		// purposes. Without this, ssosync deletes these administrative groups.
+		if awsGroup.DisplayName[:3] == "AWS" {
+			log.Warn("Refusing to delete")
+			continue
+		}
+
+		if s.cfg.Delete {
+			log.Warn("deleting group")
+			_, err = s.identityStoreClient.DeleteGroup(
+				&identitystore.DeleteGroupInput{IdentityStoreId: &s.cfg.IdentityStoreID, GroupId: &awsGroupFull.ID},
+			)
+			if err != nil {
+				log.Error("deleting group")
+				return err
+			}
+		} else {
+			log.Error("Not deleting group from AWS groups (use --delete to delete users and groups)")
 		}
 	}
 
