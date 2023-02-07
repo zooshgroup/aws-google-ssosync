@@ -139,6 +139,7 @@ Flags:
       --ignore-groups strings       ignores these Google Workspace groups
       --ignore-users strings        ignores these Google Workspace users
       --include-groups strings      include only these Google Workspace groups, NOTE: only works when --sync-method 'users_groups'
+      --group-postfilter string     applies a post-filtering once Google Workspace Groups have been loaded with the group-match settings
       --log-format string           log format (default "text")
       --log-level string            log level (default "info")
   -s, --sync-method string          Sync method to use (users_groups|groups) (default "groups")

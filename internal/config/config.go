@@ -33,6 +33,8 @@ type Config struct {
 	IgnoreGroups []string `mapstructure:"ignore_groups"`
 	// Include groups ...
 	IncludeGroups []string `mapstructure:"include_groups"`
+	// Group postfilter ...
+	GroupPostfilter []string `mapstructure:"group_postfilter"`
 	// SyncMethod allow to defined the sync method used to get the user and groups from Google Workspace
 	SyncMethod string `mapstructure:"sync_method"`
 	// Region is the region that the identity store exists on
