@@ -25,6 +25,7 @@ Metadata:
           - IgnoreUsers
           - IgnoreGroups
           - IncludeGroups
+          - GroupPostfilter
 
   AWS::ServerlessRepo::Application:
     Name: ssosync
@@ -109,6 +110,10 @@ Parameters:
     Type: String
     Description: |
       Include only these Google Workspace groups. (Only applicable for SyncMethod user_groups)
+  GroupPostfilter:
+    Type: String
+    Description: |
+      applies a post-filtering once Google Workspace Groups have been loaded with the group-match settings
   SyncMethod:
     Type: String
     Description: Sync method to use
@@ -143,6 +148,7 @@ Resources:
           SSOSYNC_IGNORE_GROUPS: !Ref IgnoreGroups
           SSOSYNC_IGNORE_USERS: !Ref IgnoreUsers
           SSOSYNC_INCLUDE_GROUPS: !Ref IncludeGroups
+          SSOSYNC_GROUP_POSTFILTER: !Ref GroupPostfilter
       Policies:
         - Statement:
             - Sid: SSMGetParameterPolicy
