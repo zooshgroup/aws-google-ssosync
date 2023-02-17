@@ -36,8 +36,8 @@ import (
 // SyncGSuite is the interface for synchronizing users/groups
 type SyncGSuite interface {
 	SyncUsers([]string) error
-	SyncGroups([]string) error
-	SyncGroupsUsers([]string) error
+	SyncGroups([]string, string) error
+	SyncGroupsUsers([]string, string) error
 }
 
 // SyncGSuite is an object type that will synchronize real users and groups
@@ -216,9 +216,11 @@ func (s *syncGSuite) SyncGroups(queries []string, postfilter string) error {
 	correlatedGroups := make(map[string]*aws.Group)
 
 	for _, g := range googleGroups {
-		if postfilter {
+		log.WithField("postfilter", postfilter).Debug("using postfilter")
+		if len(postfilter) > 0 {
 			r := regexp.MustCompile(postfilter)
 			if ! r.MatchString(g.Email) {
+				log.WithField("group", g.Email).Debug("ignoring group because of postfilter")
 				continue
 			}
 		}
@@ -344,9 +346,11 @@ func (s *syncGSuite) SyncGroupsUsers(queries []string, postfilter string) error 
 		}
 
 		for _, g := range groups {
-			if postfilter {
+			log.WithField("postfilter", postfilter).Debug("using postfilter")
+			if len(postfilter) > 0 {
 				r := regexp.MustCompile(postfilter)
 				if ! r.MatchString(g.Email) {
+					log.WithField("group", g.Email).Debug("ignoring group because of postfilter")
 					continue
 				}
 			}
