@@ -1,5 +1,23 @@
 # SSO Sync
 
+## Zoosh Quick Start
+
+If code has been changed:
+
+```bash
+make go-build
+```
+
+To deploy
+
+```bash
+sam validate --region=eu-west-1
+sam build --region=eu-west-1
+sam deploy --guided --region=eu-west-1
+```
+
+## Original description
+
 ![Github Action](https://github.com/awslabs/ssosync/workflows/main/badge.svg)
 <a href='https://github.com/jpoles1/gopherbadger' target='_blank'>![gopherbadger-tag-do-not-edit](https://img.shields.io/badge/Go%20Coverage-42%25-brightgreen.svg?longCache=true&style=flat)</a>
 [![Go Report Card](https://goreportcard.com/badge/github.com/awslabs/ssosync)](https://goreportcard.com/report/github.com/awslabs/ssosync)
@@ -139,6 +157,7 @@ Flags:
       --ignore-groups strings       ignores these Google Workspace groups
       --ignore-users strings        ignores these Google Workspace users
       --include-groups strings      include only these Google Workspace groups, NOTE: only works when --sync-method 'users_groups'
+      --group-postfilter string     applies a post-filtering once Google Workspace Groups have been loaded with the group-match settings
       --log-format string           log format (default "text")
       --log-level string            log level (default "info")
   -s, --sync-method string          Sync method to use (users_groups|groups) (default "groups")

@@ -17,6 +17,7 @@ package internal
 
 import (
 	"context"
+	"regexp"
 	"io/ioutil"
 
 	"github.com/awslabs/ssosync/internal/aws"
@@ -35,8 +36,8 @@ import (
 // SyncGSuite is the interface for synchronizing users/groups
 type SyncGSuite interface {
 	SyncUsers([]string) error
-	SyncGroups([]string) error
-	SyncGroupsUsers([]string) error
+	SyncGroups([]string, string) error
+	SyncGroupsUsers([]string, string) error
 }
 
 // SyncGSuite is an object type that will synchronize real users and groups
@@ -186,7 +187,7 @@ func (s *syncGSuite) SyncUsers(queries []string) error {
 //  name:contact* email:contact*
 //  name:Admin* email:aws-*
 //  email:aws-*
-func (s *syncGSuite) SyncGroups(queries []string) error {
+func (s *syncGSuite) SyncGroups(queries []string, postfilter string) error {
 	if len(queries) < 1 {
 		queries = append(queries, "")
 	}
@@ -215,6 +216,14 @@ func (s *syncGSuite) SyncGroups(queries []string) error {
 	correlatedGroups := make(map[string]*aws.Group)
 
 	for _, g := range googleGroups {
+		log.WithField("postfilter", postfilter).Debug("using postfilter")
+		if len(postfilter) > 0 {
+			r := regexp.MustCompile(postfilter)
+			if ! r.MatchString(g.Email) {
+				log.WithField("group", g.Email).Debug("ignoring group because of postfilter")
+				continue
+			}
+		}
 		if s.ignoreGroup(g.Email) || !s.includeGroup(g.Email) {
 			continue
 		}
@@ -317,7 +326,7 @@ func (s *syncGSuite) SyncGroups(queries []string) error {
 //  4) add groups in aws and add its members, these were added in google
 //  5) validate equals aws an google groups members
 //  6) delete groups in aws, these were deleted in google
-func (s *syncGSuite) SyncGroupsUsers(queries []string) error {
+func (s *syncGSuite) SyncGroupsUsers(queries []string, postfilter string) error {
 	if len(queries) < 1 {
 		queries = append(queries, "")
 	}
@@ -337,6 +346,14 @@ func (s *syncGSuite) SyncGroupsUsers(queries []string) error {
 		}
 
 		for _, g := range groups {
+			log.WithField("postfilter", postfilter).Debug("using postfilter")
+			if len(postfilter) > 0 {
+				r := regexp.MustCompile(postfilter)
+				if ! r.MatchString(g.Email) {
+					log.WithField("group", g.Email).Debug("ignoring group because of postfilter")
+					continue
+				}
+			}
 			if s.ignoreGroup(g.Email) {
 				log.WithField("group", g.Email).Debug("ignoring group")
 				continue
@@ -857,7 +874,7 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 
 	log.WithField("sync_method", cfg.SyncMethod).Info("syncing")
 	if cfg.SyncMethod == config.DefaultSyncMethod {
-		err = c.SyncGroupsUsers(cfg.GroupMatch)
+		err = c.SyncGroupsUsers(cfg.GroupMatch, cfg.GroupPostfilter)
 		if err != nil {
 			return err
 		}
@@ -867,7 +884,7 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 			return err
 		}
 
-		err = c.SyncGroups(cfg.GroupMatch)
+		err = c.SyncGroups(cfg.GroupMatch, cfg.GroupPostfilter)
 		if err != nil {
 			return err
 		}
