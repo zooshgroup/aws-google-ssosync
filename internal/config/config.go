@@ -6,7 +6,7 @@ type Config struct {
 	// Verbose toggles the verbosity
 	Debug bool
 	// Delete is whether to delete on AWS
-	Delete bool
+	Delete bool `mapstructure:"delete"`
 	// LogLevel is the level with with to log for this config
 	LogLevel string `mapstructure:"log_level"`
 	// LogFormat is the format that is used for logging

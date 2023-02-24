@@ -166,6 +166,7 @@ func initConfig() {
 		"ignore_groups",
 		"include_groups",
 		"group_postfilter",
+		"delete",
 		"user_match",
 		"group_match",
 		"sync_method",
